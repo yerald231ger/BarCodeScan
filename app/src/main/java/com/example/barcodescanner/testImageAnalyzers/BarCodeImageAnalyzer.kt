@@ -1,4 +1,4 @@
-package com.example.barcodescanner.imageAnalyzers
+package com.example.barcodescanner.testImageAnalyzers
 
 import androidx.annotation.OptIn
 import androidx.camera.core.ExperimentalGetImage

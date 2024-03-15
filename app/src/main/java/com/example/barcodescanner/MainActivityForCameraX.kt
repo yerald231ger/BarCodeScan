@@ -28,12 +28,14 @@ import androidx.camera.video.VideoCapture
 import androidx.camera.video.VideoRecordEvent
 import androidx.camera.view.CameraController.COORDINATE_SYSTEM_VIEW_REFERENCED
 import androidx.camera.view.LifecycleCameraController
+import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.core.content.PermissionChecker
 import androidx.lifecycle.LifecycleOwner
-import com.example.barcodescanner.imageAnalyzers.BarCodeImageAnalyzer
 import com.example.barcodescanner.databinding.ActivityMainForCameraXBinding
+import com.example.barcodescanner.testImageAnalyzers.BarCodeImageAnalyzer
 import com.google.common.util.concurrent.ListenableFuture
+import com.google.mlkit.vision.barcode.BarcodeScanner
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
@@ -56,7 +58,7 @@ class MainActivityForCameraX : AppCompatActivity() {
 
     private var videoCapture: VideoCapture<Recorder>? = null
     private var recording: Recording? = null
-
+    private lateinit var barcodeScanner: BarcodeScanner
     private lateinit var cameraExecutor: ExecutorService
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,7 +68,7 @@ class MainActivityForCameraX : AppCompatActivity() {
 
         // Request camera permissions
         if (allPermissionsGranted()) {
-            startCamera()
+            startCamera2()
         } else {
             requestPermissions()
         }
@@ -205,6 +207,41 @@ class MainActivityForCameraX : AppCompatActivity() {
 
     }
 
+    private fun startCamera2() {
+        val cameraController = LifecycleCameraController(baseContext)
+        val previewView: PreviewView = viewBinding.viewFinder
+
+        val options = BarcodeScannerOptions.Builder()
+            .setBarcodeFormats(Barcode.FORMAT_CODE_128)
+            .build()
+        barcodeScanner = BarcodeScanning.getClient(options)
+
+        cameraController.setImageAnalysisAnalyzer(
+            ContextCompat.getMainExecutor(this),
+            MlKitAnalyzer(
+                listOf(barcodeScanner),
+                COORDINATE_SYSTEM_VIEW_REFERENCED,
+                ContextCompat.getMainExecutor(this)
+            ) { result: MlKitAnalyzer.Result? ->
+                val barcodeResults = result?.getValue(barcodeScanner)
+                if ((barcodeResults == null) ||
+                    (barcodeResults.size == 0) ||
+                    (barcodeResults.first() == null)
+                ) {
+                    previewView.overlay.clear()
+                    previewView.setOnTouchListener { _, _ -> false } //no-op
+                    return@MlKitAnalyzer
+                }
+
+                Log.d(TAG, "Barcode detected: ${barcodeResults[0].rawValue.toString()}")
+                previewView.overlay.clear()
+            }
+        )
+
+        cameraController.bindToLifecycle(this)
+        previewView.controller = cameraController
+    }
+
     private fun startCamera() {
         // Initialize the cameraProviderFuture.
         cameraProviderFuture = ProcessCameraProvider.getInstance(this)
@@ -277,14 +314,15 @@ class MainActivityForCameraX : AppCompatActivity() {
         ){result : MlKitAnalyzer.Result ->
             Log.d(TAG, "Barcode detected: ${result.getValue(barcodeScanner)}")
         }
+        val barCodeImageAnalyzer = BarCodeImageAnalyzer { luma ->
+            Log.d(TAG, "Average luminosity: $luma")
+        }
         imageAnalysis = ImageAnalysis.Builder()
             .build()
             .also {
-                it.setAnalyzer(cameraExecutor, BarCodeImageAnalyzer { luma ->
-                    Log.d(TAG, "Average luminosity: $luma")
-                })
+                it.setAnalyzer(cameraExecutor, barCodeImageAnalyzer)
             }
-        //cameraController.setImageAnalysisAnalyzer(cameraExecutor, mlKitAnalyzer)
+        cameraController.setImageAnalysisAnalyzer(cameraExecutor, mlKitAnalyzer)
 
 
 
@@ -349,7 +387,7 @@ class MainActivityForCameraX : AppCompatActivity() {
                     Toast.LENGTH_SHORT
                 ).show()
             } else {
-                startCamera()
+                startCamera2()
             }
         }
 }

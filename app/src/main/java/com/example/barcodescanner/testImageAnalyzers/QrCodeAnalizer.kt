@@ -1,4 +1,4 @@
-package com.example.barcodescanner.imageAnalyzers
+package com.example.barcodescanner.testImageAnalyzers
 
 import android.graphics.ImageFormat
 import androidx.camera.core.ImageAnalysis

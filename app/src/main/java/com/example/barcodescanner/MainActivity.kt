@@ -31,7 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-import com.example.barcodescanner.imageAnalyzers.BarCodeImageAnalyzer
+import com.example.barcodescanner.testImageAnalyzers.BarCodeImageAnalyzer
 import com.example.barcodescanner.ui.theme.BarCodeScannerTheme
 
 class MainActivity : ComponentActivity() {
